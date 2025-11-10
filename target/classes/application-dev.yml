@@ -1,0 +1,64 @@
+# Development profile configuration
+# Enables ELK logging and uses local whisper transcription
+
+spring:
+  application:
+    name: mp3-handler-dev
+
+# Point to whisper-python service directly
+whisper:
+  base-url: ${WHISPER_BASE_URL:http://localhost:8091}
+  connect-timeout: 10
+  read-timeout: 300
+  max-retries: 3
+
+# Logstash configuration for structured logging
+logging:
+  level:
+    com.scholary.mp3.handler: DEBUG
+    com.scholary.mp3.handler.chunking: DEBUG
+    com.scholary.mp3.handler.service: DEBUG
+    com.scholary.mp3.handler.transcript: DEBUG
+  logstash:
+    host: ${LOGSTASH_HOST:localhost}
+    port: ${LOGSTASH_PORT:5044}
+
+# Enable detailed chunk planning and merge logging
+transcription:
+  default-chunk-seconds: 60
+  default-overlap-seconds: 5
+  default-silence-aware: true
+  max-file-duration-hours: 24
+  temp-dir: ${java.io.tmpdir}/mp3handler
+  async-executor-threads: 4
+  async-executor-queue-size: 100
+  # Dev-specific: emit detailed events
+  log-chunk-details: true
+  log-merge-details: true
+
+# Object storage (MinIO)
+objectstore:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:admin}
+  secret-key: ${MINIO_SECRET_KEY:admin123}
+  bucket: ${MINIO_BUCKET:audio-dev}
+  region: us-east-1
+  path-style-access: true
+
+# Ffmpeg settings
+ffmpeg:
+  silence-noise-threshold: -30dB
+  silence-min-duration: 0.5
+  max-nudge-distance: 3.0
+  audio-quality: 2
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true

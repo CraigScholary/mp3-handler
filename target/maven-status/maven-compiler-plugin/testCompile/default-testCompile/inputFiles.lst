@@ -1,0 +1,8 @@
+/Users/craighalloway/projects/mp3handler/mp3-handler/src/test/java/com/scholary/mp3/handler/Mp3HandlerApplicationTest.java
+/Users/craighalloway/projects/mp3handler/mp3-handler/src/test/java/com/scholary/mp3/handler/chunking/FfmpegChunkPlannerTest.java
+/Users/craighalloway/projects/mp3handler/mp3-handler/src/test/java/com/scholary/mp3/handler/chunking/TimeRangeTest.java
+/Users/craighalloway/projects/mp3handler/mp3-handler/src/test/java/com/scholary/mp3/handler/integration/TranscriptionIntegrationTest.java
+/Users/craighalloway/projects/mp3handler/mp3-handler/src/test/java/com/scholary/mp3/handler/objectstore/S3ObjectStoreClientTest.java
+/Users/craighalloway/projects/mp3handler/mp3-handler/src/test/java/com/scholary/mp3/handler/service/TranscriptWriterTest.java
+/Users/craighalloway/projects/mp3handler/mp3-handler/src/test/java/com/scholary/mp3/handler/service/TranscriptionServiceTest.java
+/Users/craighalloway/projects/mp3handler/mp3-handler/src/test/java/com/scholary/mp3/handler/transcript/TranscriptMergerTest.java

@@ -1,0 +1,136 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: mp3-handler
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+# Object Store Configuration (MinIO/S3)
+objectstore:
+  # Local MinIO endpoint for development
+  endpoint: http://localhost:9000
+  # S3-compatible access credentials (dev only - use secrets management in production)
+  accessKey: admin
+  secretKey: admin123
+  # Default bucket for audio files
+  bucket: audio-dev
+  # AWS region (optional for MinIO, required for real S3)
+  region: us-east-1
+  # Path-style access required for MinIO (virtual-hosted style for AWS S3)
+  pathStyleAccess: true
+
+# Whisper API Configuration
+whisper:
+  # Base URL for the Whisper transcription service (faster-whisper Python service)
+  baseUrl: ${WHISPER_BASE_URL:http://localhost:8091}
+  # Connection timeout in seconds
+  connectTimeout: 10
+  # Read timeout in seconds (transcription can take a while)
+  readTimeout: ${WHISPER_TIMEOUT_SECONDS:120}
+  # Max retry attempts for transient failures
+  maxRetries: ${WHISPER_MAX_RETRIES:3}
+
+# Transcription Processing Configuration
+transcription:
+  # Default chunk duration in seconds
+  # Larger chunks = fewer API calls but more memory per chunk
+  # Smaller chunks = more API calls but better granularity and resume capability
+  defaultChunkSeconds: 60
+  
+  # Default overlap between chunks in seconds
+  # Overlap helps with continuity and de-duplication at boundaries
+  defaultOverlapSeconds: 5
+  
+  # Enable silence-aware boundary nudging by default
+  # Aligns chunk boundaries with natural pauses for better transcription quality
+  defaultSilenceAware: true
+  
+  # Maximum supported audio file duration in hours
+  # Increased from 12 to 24 hours to support very long recordings
+  # With streaming architecture, duration is limited by processing time, not memory
+  maxFileDurationHours: 24
+  
+  # Temporary file storage location (uses system temp if not specified)
+  # Only individual chunks are stored here, not entire files
+  # Typical usage: ~1-2 chunks in temp at any time (~2-4 MB each)
+  tempDir: ${java.io.tmpdir}/mp3handler
+  
+  # Thread pool size for async processing
+  # Each thread can process one job at a time
+  # Memory usage: ~20MB per active job (streaming mode)
+  asyncExecutorThreads: 4
+  
+  # Maximum queue size for async jobs
+  # Prevents memory exhaustion from too many queued jobs
+  asyncExecutorQueueSize: 100
+  
+  # Streaming mode is now used for ALL files (simpler, more consistent)
+  # Benefits:
+  # - Constant memory usage (~20MB) regardless of file size
+  # - Progressive processing (start transcribing while downloading)
+  # - Resume capability via chunk cache
+  # - Backpressure control to prevent memory spikes
+  
+  # Chunk cache configuration (for resume functionality)
+  cache:
+    # Maximum number of chunks to cache
+    # Each chunk transcript is ~1-5KB, so 1000 chunks = ~1-5MB
+    maxSize: 1000
+    
+    # Time to keep cached chunks (in hours)
+    # Allows resume within 24 hours of interruption
+    ttlHours: 24
+
+# Ffmpeg Configuration
+ffmpeg:
+  # Silence detection threshold in dB (more negative = quieter sounds detected)
+  silenceNoiseThreshold: -30dB
+  # Minimum silence duration to detect in seconds
+  silenceMinDuration: 0.5
+  # Maximum nudge distance from planned boundary in seconds
+  maxNudgeDistance: 3.0
+  # Audio quality for re-encoding (0-9, lower is better)
+  audioQuality: 2
+
+# Job Store Configuration (Caffeine)
+jobstore:
+  # Maximum number of jobs to keep in memory
+  maxSize: 1000
+  # Time to keep completed jobs before eviction (in minutes)
+  expireAfterMinutes: 60
+
+# Swagger/OpenAPI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging
+logging:
+  level:
+    com.scholary.mp3: INFO
+    software.amazon.awssdk: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [%X{correlationId}] - %msg%n"

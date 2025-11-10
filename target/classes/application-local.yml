@@ -1,0 +1,11 @@
+# Local development profile
+# Activate with: mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+transcription:
+  # Use system temp directory for local development
+  tempDir: ${java.io.tmpdir}/mp3handler
+
+# Logging - more verbose for local development
+logging:
+  level:
+    com.scholary.mp3: DEBUG
