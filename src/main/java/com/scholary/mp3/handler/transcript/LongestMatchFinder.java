@@ -54,42 +54,27 @@ public class LongestMatchFinder {
     }
 
     int bestMatchLength = 0;
-    int bestText1End = 0;
+    int bestText1Start = 0;
     int bestText2Start = 0;
 
-    // Try each possible starting position in text2
-    for (int text2Start = 0; text2Start < text2Words.size(); text2Start++) {
-
-      // Try each possible ending position in text1
-      for (int text1End = text1Words.size(); text1End > 0; text1End--) {
-
-        // Calculate how many words we're trying to match
-        int text1Length = text1End;
-        int text2Remaining = text2Words.size() - text2Start;
-        int maxPossibleMatch = Math.min(text1Length, text2Remaining);
-
-        // Skip if we can't beat the current best
-        if (maxPossibleMatch <= bestMatchLength) {
-          continue;
-        }
-
-        // Try to match from the end of text1 to the current position in text2
+    // Try each possible starting position in text1
+    for (int text1Start = 0; text1Start < text1Words.size(); text1Start++) {
+      // Try each possible starting position in text2
+      for (int text2Start = 0; text2Start < text2Words.size(); text2Start++) {
+        
+        // Count consecutive matches from these starting positions
         int matchLength = 0;
-        for (int i = 0; i < maxPossibleMatch; i++) {
-          int text1Index = text1End - maxPossibleMatch + i;
-          int text2Index = text2Start + i;
-
-          if (wordsMatch(text1Words.get(text1Index), text2Words.get(text2Index))) {
-            matchLength++;
-          } else {
-            break; // Must be consecutive
-          }
+        while (text1Start + matchLength < text1Words.size() &&
+               text2Start + matchLength < text2Words.size() &&
+               wordsMatch(text1Words.get(text1Start + matchLength), 
+                         text2Words.get(text2Start + matchLength))) {
+          matchLength++;
         }
 
         // Update best match if this is better
         if (matchLength > bestMatchLength) {
           bestMatchLength = matchLength;
-          bestText1End = text1End;
+          bestText1Start = text1Start;
           bestText2Start = text2Start;
         }
       }
@@ -98,8 +83,8 @@ public class LongestMatchFinder {
     // Only return match if it meets minimum length
     if (bestMatchLength >= minMatchLength) {
       List<String> matchedWords =
-          text1Words.subList(bestText1End - bestMatchLength, bestText1End);
-      return new MatchResult(bestMatchLength, bestText1End, bestText2Start, matchedWords);
+          text1Words.subList(bestText1Start, bestText1Start + bestMatchLength);
+      return new MatchResult(bestMatchLength, bestText1Start + bestMatchLength, bestText2Start, matchedWords);
     }
 
     return new MatchResult(0, 0, 0, List.of());

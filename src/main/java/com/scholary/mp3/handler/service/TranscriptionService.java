@@ -587,6 +587,9 @@ public class TranscriptionService {
     java.net.URL jsonUrl = objectStoreClient.presignGet(bucket, jsonKey, java.time.Duration.ofDays(7));
     java.net.URL srtUrl = objectStoreClient.presignGet(bucket, srtKey, java.time.Duration.ofDays(7));
 
-    return new TranscriptionResponse.StorageInfo(bucket, jsonKey, srtKey, jsonUrl.toString(), srtUrl.toString());
+    String jsonUrlStr = jsonUrl != null ? jsonUrl.toString() : null;
+    String srtUrlStr = srtUrl != null ? srtUrl.toString() : null;
+
+    return new TranscriptionResponse.StorageInfo(bucket, jsonKey, srtKey, jsonUrlStr, srtUrlStr);
   }
 }
