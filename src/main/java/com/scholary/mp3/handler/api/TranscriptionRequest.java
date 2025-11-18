@@ -13,21 +13,21 @@ import jakarta.validation.constraints.NotBlank;
 public record TranscriptionRequest(
     @NotBlank String bucket,
     @NotBlank String key,
-    @Min(10) @Max(300) Integer chunkSeconds,
-    @Min(0) @Max(30) Integer overlapSeconds,
+    @Min(10) @Max(3600) Integer chunkSeconds,
+    @Min(0) @Max(60) Integer overlapSeconds,
     Boolean silenceAware,
     Boolean save) {
 
   // Provide defaults
   public TranscriptionRequest {
     if (chunkSeconds == null) {
-      chunkSeconds = 60;
+      chunkSeconds = 3600;  // Default to 1 hour
     }
     if (overlapSeconds == null) {
-      overlapSeconds = 5;
+      overlapSeconds = 30;  // Default to 30 seconds
     }
     if (silenceAware == null) {
-      silenceAware = true;
+      silenceAware = false;  // Default to overlap mode
     }
     if (save == null) {
       save = true;
