@@ -41,6 +41,18 @@ public class WordMatchingMerger implements MergeStrategy {
   @Override
   public List<MergedSegment> merge(List<ChunkTranscript> chunkTranscripts, List<ChunkPlan> chunkPlans) {
     // For now, ignore chunkPlans - we use fixed 30s overlap
+    return merge(chunkTranscripts);
+  }
+
+  /**
+   * Merge chunk transcripts with word-level matching in overlap regions.
+   *
+   * <p>Convenience method for tests that don't need ChunkPlan information.
+   *
+   * @param chunkTranscripts the transcripts to merge
+   * @return merged transcript with duplicates removed
+   */
+  public List<MergedSegment> merge(List<ChunkTranscript> chunkTranscripts) {
     return mergeWithFixedOverlap(chunkTranscripts);
   }
 

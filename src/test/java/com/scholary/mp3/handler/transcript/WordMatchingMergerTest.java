@@ -50,7 +50,7 @@ class WordMatchingMergerTest {
     // Chunk 2: 30-90s (30s overlap), starts with "because at the end of the day"
     ChunkTranscript chunk2 =
         new ChunkTranscript(
-            30.0,
+            1,
             30.0,
             List.of(
                 new TranscriptSegment(
@@ -90,7 +90,7 @@ class WordMatchingMergerTest {
     // Chunk 2: starts with completely different text (no match)
     ChunkTranscript chunk2 =
         new ChunkTranscript(
-            30.0, 30.0, List.of(new TranscriptSegment(0.0, 5.0, "Second chunk content")), "en");
+            1, 30.0, List.of(new TranscriptSegment(0.0, 5.0, "Second chunk content")), "en");
 
     List<MergedSegment> result = merger.merge(List.of(chunk1, chunk2));
 
@@ -113,7 +113,7 @@ class WordMatchingMergerTest {
 
     ChunkTranscript chunk2 =
         new ChunkTranscript(
-            30.0,
+            1,
             30.0,
             List.of(
                 new TranscriptSegment(0.0, 10.0, "the quick brown fox jumps over"),
@@ -122,7 +122,7 @@ class WordMatchingMergerTest {
 
     ChunkTranscript chunk3 =
         new ChunkTranscript(
-            60.0,
+            2,
             60.0,
             List.of(
                 new TranscriptSegment(0.0, 10.0, "lorem ipsum dolor sit amet"),
@@ -169,7 +169,7 @@ class WordMatchingMergerTest {
 
     ChunkTranscript chunk2 =
         new ChunkTranscript(
-            100.0, 100.0, List.of(new TranscriptSegment(5.0, 15.0, "Second segment")), "en");
+            1, 100.0, List.of(new TranscriptSegment(5.0, 15.0, "Second segment")), "en");
 
     List<MergedSegment> result = merger.merge(List.of(chunk1, chunk2));
 

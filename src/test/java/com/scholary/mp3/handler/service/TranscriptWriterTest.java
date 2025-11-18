@@ -1,8 +1,10 @@
 package com.scholary.mp3.handler.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scholary.mp3.handler.objectstore.ObjectStoreClient;
 import com.scholary.mp3.handler.transcript.MergedSegment;
 import java.io.IOException;
 import java.util.List;
@@ -15,7 +17,7 @@ class TranscriptWriterTest {
 
   @BeforeEach
   void setUp() {
-    writer = new TranscriptWriter(new ObjectMapper());
+    writer = new TranscriptWriter(new ObjectMapper(), mock(ObjectStoreClient.class));
   }
 
   @Test
