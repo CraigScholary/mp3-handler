@@ -17,8 +17,8 @@ objectstore:
   # Endpoint - override with OBJECTSTORE_ENDPOINT environment variable
   endpoint: ${OBJECTSTORE_ENDPOINT:http://localhost:9000}
   # Access credentials - override with environment variables in production
-  accessKey: ${OBJECTSTORE_ACCESS_KEY:minioadmin}
-  secretKey: ${OBJECTSTORE_SECRET_KEY:minioadmin}
+  accessKey: ${OBJECTSTORE_ACCESS_KEY:admin}
+  secretKey: ${OBJECTSTORE_SECRET_KEY:admin123}
   # Default bucket for audio files
   bucket: ${OBJECTSTORE_BUCKET:audio-dev}
   # AWS region (optional for MinIO, required for real S3)
