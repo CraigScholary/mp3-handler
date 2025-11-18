@@ -33,7 +33,8 @@ whisper:
   # Connection timeout in seconds
   connectTimeout: 10
   # Read timeout in seconds (transcription can take a while)
-  readTimeout: ${WHISPER_TIMEOUT_SECONDS:120}
+  # For 1-hour chunks, transcription can take 10-15 minutes
+  readTimeout: ${WHISPER_TIMEOUT_SECONDS:1800}
   # Max retry attempts for transient failures
   maxRetries: ${WHISPER_MAX_RETRIES:3}
 
