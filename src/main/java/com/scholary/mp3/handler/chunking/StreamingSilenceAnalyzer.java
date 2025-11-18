@@ -89,9 +89,9 @@ public class StreamingSilenceAnalyzer {
    * @param key S3 key
    * @param fileSize total file size in bytes
    * @param targetChunkDuration desired chunk duration in seconds (ignored, uses maxChunkDuration)
-   * @return list of breakpoints (in seconds from start)
+   * @return list of breakpoints with associated silence information
    */
-  public List<Double> findBreakpointsGreedy(
+  public List<BreakpointWithSilence> findBreakpointsGreedyWithSilence(
       String bucket, String key, long fileSize, double targetChunkDuration) throws IOException {
 
     double totalDuration = (double) fileSize / BYTES_PER_SECOND;
