@@ -1,8 +1,13 @@
 package com.scholary.mp3.handler.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scholary.mp3.handler.api.TranscriptionResponse;
+import com.scholary.mp3.handler.objectstore.ObjectStoreClient;
 import com.scholary.mp3.handler.transcript.MergedSegment;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.URL;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,9 +22,11 @@ import org.springframework.stereotype.Component;
 public class TranscriptWriter {
 
   private final ObjectMapper objectMapper;
+  private final ObjectStoreClient objectStoreClient;
 
-  public TranscriptWriter(ObjectMapper objectMapper) {
+  public TranscriptWriter(ObjectMapper objectMapper, ObjectStoreClient objectStoreClient) {
     this.objectMapper = objectMapper;
+    this.objectStoreClient = objectStoreClient;
   }
 
   /**
@@ -85,6 +92,40 @@ public class TranscriptWriter {
     }
 
     return srt.toString().getBytes();
+  }
+
+  /**
+   * Save transcripts to object store.
+   *
+   * @param bucket the bucket name
+   * @param originalKey the original audio file key
+   * @param segments the merged segments
+   * @param language the detected language
+   * @return storage info with URLs
+   */
+  public TranscriptionResponse.StorageInfo saveTranscripts(
+      String bucket, String originalKey, List<MergedSegment> segments, String language)
+      throws IOException {
+
+    // Generate keys
+    String baseKey = originalKey.replaceAll("\\.[^.]+$", ""); // Remove extension
+    String jsonKey = baseKey + "_transcript.json";
+    String srtKey = baseKey + "_transcript.srt";
+
+    // Write JSON
+    byte[] jsonBytes = writeJson(segments, language);
+    objectStoreClient.putObject(bucket, jsonKey, new ByteArrayInputStream(jsonBytes), "application/json");
+
+    // Write SRT
+    byte[] srtBytes = writeSrt(segments);
+    objectStoreClient.putObject(bucket, srtKey, new ByteArrayInputStream(srtBytes), "text/plain");
+
+    // Generate presigned URLs (valid for 7 days)
+    URL jsonUrl = objectStoreClient.generatePresignedUrl(bucket, jsonKey, Duration.ofDays(7));
+    URL srtUrl = objectStoreClient.generatePresignedUrl(bucket, srtKey, Duration.ofDays(7));
+
+    return new TranscriptionResponse.StorageInfo(
+        bucket, jsonKey, srtKey, jsonUrl.toString(), srtUrl.toString());
   }
 
   /**

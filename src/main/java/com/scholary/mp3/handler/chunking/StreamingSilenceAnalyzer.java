@@ -65,6 +65,31 @@ public class StreamingSilenceAnalyzer {
   }
 
   /**
+   * Find breakpoints using greedy streaming with lookback (returns simple doubles).
+   *
+   * <p>This is the original method for backward compatibility with V1 API.
+   *
+   * @param bucket S3 bucket
+   * @param key S3 key
+   * @param fileSize total file size in bytes
+   * @param targetChunkDuration desired chunk duration in seconds (ignored, uses maxChunkDuration)
+   * @return list of breakpoints (in seconds from start)
+   */
+  public List<Double> findBreakpointsGreedy(
+      String bucket, String key, long fileSize, double targetChunkDuration) throws IOException {
+    
+    List<BreakpointWithSilence> breakpointsWithSilence = 
+        findBreakpointsGreedyWithSilence(bucket, key, fileSize, targetChunkDuration);
+    
+    // Extract just the breakpoint values
+    List<Double> breakpoints = new ArrayList<>();
+    for (BreakpointWithSilence bp : breakpointsWithSilence) {
+      breakpoints.add(bp.breakpoint());
+    }
+    return breakpoints;
+  }
+
+  /**
    * Find breakpoints using greedy streaming with lookback.
    *
    * <p>This is a single-pass algorithm that:
@@ -103,7 +128,7 @@ public class StreamingSilenceAnalyzer {
         String.format("%.1f", maxChunkDuration),
         String.format("%.1f", lookbackSeconds));
 
-    List<Double> breakpoints = new ArrayList<>();
+    List<BreakpointWithSilence> breakpoints = new ArrayList<>();
     double currentPosition = 0.0;
 
     while (currentPosition < totalDuration) {
@@ -161,7 +186,7 @@ public class StreamingSilenceAnalyzer {
         if (bestSilence != null) {
           // Use midpoint of best silence as breakpoint
           double breakpoint = (bestSilence.start() + bestSilence.end()) / 2.0;
-          breakpoints.add(breakpoint);
+          breakpoints.add(new BreakpointWithSilence(breakpoint, bestSilence));
           currentPosition = breakpoint;
           
           LOGGER.info(
@@ -172,7 +197,7 @@ public class StreamingSilenceAnalyzer {
           // No silence found in lookback, use max duration
           double breakpoint = Math.min(analyzeUntil, totalDuration);
           if (breakpoint < totalDuration) {
-            breakpoints.add(breakpoint);
+            breakpoints.add(new BreakpointWithSilence(breakpoint));
           }
           currentPosition = breakpoint;
           

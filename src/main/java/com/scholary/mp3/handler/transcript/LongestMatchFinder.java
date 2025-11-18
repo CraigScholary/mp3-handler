@@ -1,5 +1,6 @@
 package com.scholary.mp3.handler.transcript;
 
+import com.scholary.mp3.handler.whisper.TranscriptSegment;
 import java.util.ArrayList;
 import java.util.List;
 
