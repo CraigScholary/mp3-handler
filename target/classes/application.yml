@@ -14,17 +14,17 @@ spring:
 
 # Object Store Configuration (MinIO/S3)
 objectstore:
-  # Local MinIO endpoint for development
-  endpoint: http://localhost:9000
-  # S3-compatible access credentials (dev only - use secrets management in production)
-  accessKey: admin
-  secretKey: admin123
+  # Endpoint - override with OBJECTSTORE_ENDPOINT environment variable
+  endpoint: ${OBJECTSTORE_ENDPOINT:http://localhost:9000}
+  # Access credentials - override with environment variables in production
+  accessKey: ${OBJECTSTORE_ACCESS_KEY:admin}
+  secretKey: ${OBJECTSTORE_SECRET_KEY:admin123}
   # Default bucket for audio files
-  bucket: audio-dev
+  bucket: ${OBJECTSTORE_BUCKET:audio-dev}
   # AWS region (optional for MinIO, required for real S3)
-  region: us-east-1
+  region: ${OBJECTSTORE_REGION:us-east-1}
   # Path-style access required for MinIO (virtual-hosted style for AWS S3)
-  pathStyleAccess: true
+  pathStyleAccess: ${OBJECTSTORE_PATH_STYLE:true}
 
 # Whisper API Configuration
 whisper:
@@ -33,24 +33,33 @@ whisper:
   # Connection timeout in seconds
   connectTimeout: 10
   # Read timeout in seconds (transcription can take a while)
-  readTimeout: ${WHISPER_TIMEOUT_SECONDS:120}
+  # For 1-hour chunks, transcription can take 10-15 minutes
+  readTimeout: ${WHISPER_TIMEOUT_SECONDS:1800}
   # Max retry attempts for transient failures
   maxRetries: ${WHISPER_MAX_RETRIES:3}
 
 # Transcription Processing Configuration
 transcription:
-  # Default chunk duration in seconds
-  # Larger chunks = fewer API calls but more memory per chunk
-  # Smaller chunks = more API calls but better granularity and resume capability
-  defaultChunkSeconds: 60
+  # Chunking configuration
+  chunking:
+    # Default chunk duration in seconds (max for both modes)
+    defaultChunkSeconds: 3600  # 1 hour
+    # Default chunking mode: false = OVERLAP, true = SILENCE_AWARE
+    defaultSilenceAware: false
   
-  # Default overlap between chunks in seconds
-  # Overlap helps with continuity and de-duplication at boundaries
-  defaultOverlapSeconds: 5
+  # Overlap mode settings
+  overlap:
+    # Overlap duration in seconds (increased for better accuracy)
+    overlapSeconds: 30
+    # Minimum words for valid match during merge
+    minOverlapWords: 3
   
-  # Enable silence-aware boundary nudging by default
-  # Aligns chunk boundaries with natural pauses for better transcription quality
-  defaultSilenceAware: true
+  # Merge strategy configuration
+  merge:
+    # Context window for word matching (words before/after)
+    contextWindowWords: 10
+    # Minimum similarity threshold for fuzzy matching (0.0-1.0)
+    minSimilarityThreshold: 0.8
   
   # Maximum supported audio file duration in hours
   # Increased from 12 to 24 hours to support very long recordings
@@ -91,11 +100,12 @@ transcription:
 # Ffmpeg Configuration
 ffmpeg:
   # Silence detection threshold in dB (more negative = quieter sounds detected)
-  silenceNoiseThreshold: -30dB
+  # Adjust based on audio quality: -30dB for clean audio, -40dB for noisy
+  silenceNoiseThreshold: -35dB
   # Minimum silence duration to detect in seconds
-  silenceMinDuration: 0.5
+  silenceMinDuration: 1.0
   # Maximum nudge distance from planned boundary in seconds
-  maxNudgeDistance: 3.0
+  maxNudgeDistance: 5.0
   # Audio quality for re-encoding (0-9, lower is better)
   audioQuality: 2
 

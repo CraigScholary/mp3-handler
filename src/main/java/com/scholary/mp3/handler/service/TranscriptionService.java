@@ -213,15 +213,14 @@ public class TranscriptionService {
           metadata.contentLength(),
           metadata.contentLength() / 1024 / 1024);
 
-      // Estimate duration from file size (MP3 at ~128kbps)
-      Duration estimatedDuration =
-          Duration.ofSeconds(metadata.contentLength() / BYTES_PER_SECOND_ESTIMATE);
+      // Get actual duration using ffprobe (handles VBR correctly)
+      Duration actualDuration = getActualDuration(request.bucket(), request.key());
       LOGGER.info(
-          "Estimated duration: {} seconds ({} hours)",
-          estimatedDuration.getSeconds(),
-          estimatedDuration.toHours());
+          "Actual duration: {} seconds ({} hours)",
+          actualDuration.getSeconds(),
+          actualDuration.toHours());
 
-      validateDuration(estimatedDuration);
+      validateDuration(actualDuration);
 
       // Plan chunks based on silence analysis (if enabled)
       List<TimeRange> chunkRanges;
@@ -241,7 +240,7 @@ public class TranscriptionService {
         LOGGER.info("Found {} breakpoints using greedy streaming", chunkBreakpoints.size());
         
         // Create chunks from breakpoints
-        chunkRanges = createChunksFromBreakpoints(chunkBreakpoints, estimatedDuration);
+        chunkRanges = createChunksFromBreakpoints(chunkBreakpoints, actualDuration);
       } else {
         // Fixed-interval chunking (old behavior)
         chunkRanges =
@@ -249,7 +248,7 @@ public class TranscriptionService {
                 Duration.ofSeconds(request.chunkSeconds()),
                 Duration.ofSeconds(request.overlapSeconds()),
                 List.of(),
-                estimatedDuration);
+                actualDuration);
       }
 
       LOGGER.info(
@@ -368,7 +367,7 @@ public class TranscriptionService {
       }
 
       TranscriptionResponse.Diagnostics diagnostics =
-          buildDiagnostics(chunkRanges, chunkTranscripts, estimatedDuration);
+          buildDiagnostics(chunkRanges, chunkTranscripts, actualDuration);
 
       TranscriptionResponse.StorageInfo storageInfo = null;
       if (request.save()) {
@@ -422,31 +421,45 @@ public class TranscriptionService {
     structuredLogger.logChunkStarted(chunkIndex, range.start(), range.end(), range.duration());
     long startTime = System.currentTimeMillis();
 
-    // Calculate byte range for this time range
-    // This is an approximation - MP3 bitrate varies
-    long startByte = (long) (range.start() * BYTES_PER_SECOND_ESTIMATE);
-    long endByte = (long) (range.end() * BYTES_PER_SECOND_ESTIMATE);
-
-    // Add buffer to ensure we get complete audio frames
-    // MP3 frames are ~26ms, so add 1 second buffer on each side
-    long bufferBytes = BYTES_PER_SECOND_ESTIMATE;
-    startByte = Math.max(0, startByte - bufferBytes);
-    endByte = Math.min(totalFileSize - 1, endByte + bufferBytes);
-
-    LOGGER.debug(
-        "Downloading byte range for chunk {}: {}-{} ({} KB)",
-        chunkIndex,
-        startByte,
-        endByte,
-        (endByte - startByte) / 1024);
-
-    // Download only this chunk's bytes
+    // Use ffmpeg to extract time-based chunk directly from S3/MinIO
+    // This handles VBR MP3s correctly without byte-range estimation
     Path chunkFile =
         tempDir.resolve(String.format("chunk_%d_%s.mp3", chunkIndex, UUID.randomUUID()));
-
-    try (InputStream rangeStream =
-        objectStoreClient.getObjectRange(bucket, key, startByte, endByte)) {
-      Files.copy(rangeStream, chunkFile, StandardCopyOption.REPLACE_EXISTING);
+    
+    // Get presigned URL for ffmpeg to read from
+    String presignedUrl = objectStoreClient.presignGet(bucket, key, Duration.ofMinutes(30)).toString();
+    
+    LOGGER.debug(
+        "Extracting time-based chunk {}: {}-{} (duration: {}s)",
+        chunkIndex,
+        range.start(),
+        range.end(),
+        range.duration());
+    
+    // Use ffmpeg to extract exact time range
+    // -ss: start time, -t: duration, -c copy: no re-encoding
+    ProcessBuilder pb = new ProcessBuilder(
+        "ffmpeg",
+        "-ss", String.format("%.3f", range.start()),
+        "-i", presignedUrl,
+        "-t", String.format("%.3f", range.duration()),
+        "-c", "copy",
+        "-y",
+        chunkFile.toString()
+    );
+    pb.redirectErrorStream(true);
+    
+    try {
+      Process process = pb.start();
+      int exitCode = process.waitFor();
+      if (exitCode != 0) {
+        // Read error output
+        String error = new String(process.getInputStream().readAllBytes());
+        throw new IOException("ffmpeg extraction failed: " + error);
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("ffmpeg extraction interrupted", e);
     }
 
     try {
@@ -591,5 +604,43 @@ public class TranscriptionService {
     String srtUrlStr = srtUrl != null ? srtUrl.toString() : null;
 
     return new TranscriptionResponse.StorageInfo(bucket, jsonKey, srtKey, jsonUrlStr, srtUrlStr);
+  }
+  
+  /**
+   * Get actual audio duration using ffprobe.
+   * This handles VBR MP3s correctly unlike file-size estimation.
+   */
+  private Duration getActualDuration(String bucket, String key) throws IOException {
+    // Get presigned URL for ffprobe to read from
+    String presignedUrl = objectStoreClient.presignGet(bucket, key, Duration.ofMinutes(5)).toString();
+    
+    // Use ffprobe to get duration
+    ProcessBuilder pb = new ProcessBuilder(
+        "ffprobe",
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        presignedUrl
+    );
+    pb.redirectErrorStream(true);
+    
+    try {
+      Process process = pb.start();
+      String output = new String(process.getInputStream().readAllBytes()).trim();
+      int exitCode = process.waitFor();
+      
+      if (exitCode != 0) {
+        throw new IOException("ffprobe failed with exit code: " + exitCode);
+      }
+      
+      double durationSeconds = Double.parseDouble(output);
+      return Duration.ofSeconds((long) durationSeconds);
+      
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("ffprobe interrupted", e);
+    } catch (NumberFormatException e) {
+      throw new IOException("Failed to parse duration from ffprobe output", e);
+    }
   }
 }
