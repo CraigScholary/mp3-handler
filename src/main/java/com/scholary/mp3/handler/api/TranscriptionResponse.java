@@ -20,5 +20,6 @@ public record TranscriptionResponse(
 
   public record ChunkInfo(int index, double start, double end, int segmentCount) {}
 
-  public record StorageInfo(String jsonKey, String srtKey) {}
+  public record StorageInfo(
+      String bucket, String jsonKey, String srtKey, String jsonUrl, String srtUrl) {}
 }
