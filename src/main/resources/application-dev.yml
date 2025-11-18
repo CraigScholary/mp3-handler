@@ -25,16 +25,19 @@ logging:
 
 # Enable detailed chunk planning and merge logging
 transcription:
-  default-chunk-seconds: 60
-  default-overlap-seconds: 5
-  default-silence-aware: true
-  max-file-duration-hours: 24
-  temp-dir: ${java.io.tmpdir}/mp3handler
-  async-executor-threads: 4
-  async-executor-queue-size: 100
-  # Dev-specific: emit detailed events
-  log-chunk-details: true
-  log-merge-details: true
+  chunking:
+    defaultChunkSeconds: 60
+    defaultSilenceAware: true
+  overlap:
+    overlapSeconds: 5
+    minOverlapWords: 3
+  merge:
+    contextWindowWords: 10
+    minSimilarityThreshold: 0.8
+  maxFileDurationHours: 24
+  tempDir: ${java.io.tmpdir}/mp3handler
+  asyncExecutorThreads: 4
+  asyncExecutorQueueSize: 100
 
 # Object storage (MinIO)
 objectstore:

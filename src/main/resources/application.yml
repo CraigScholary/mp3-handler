@@ -39,27 +39,26 @@ whisper:
 
 # Transcription Processing Configuration
 transcription:
-  # Default chunking mode: OVERLAP or SILENCE_AWARE
-  defaultMode: OVERLAP
-  
-  # Default chunk duration in seconds (max for both modes)
-  defaultChunkSeconds: 3600  # 1 hour
+  # Chunking configuration
+  chunking:
+    # Default chunk duration in seconds (max for both modes)
+    defaultChunkSeconds: 3600  # 1 hour
+    # Default chunking mode: false = OVERLAP, true = SILENCE_AWARE
+    defaultSilenceAware: false
   
   # Overlap mode settings
   overlap:
     # Overlap duration in seconds (increased for better accuracy)
     overlapSeconds: 30
     # Minimum words for valid match during merge
-    minMatchWords: 3
+    minOverlapWords: 3
   
-  # Silence-aware mode settings
-  silenceAware:
-    # Maximum chunk duration (will cut earlier at silence if found)
-    maxChunkDuration: 3600  # 1 hour
-    # Lookback window for finding silence (seconds)
-    lookbackSeconds: 600  # 10 minutes
-    # Fallback to fixed-interval if silence detection fails
-    fallbackToFixed: true
+  # Merge strategy configuration
+  merge:
+    # Context window for word matching (words before/after)
+    contextWindowWords: 10
+    # Minimum similarity threshold for fuzzy matching (0.0-1.0)
+    minSimilarityThreshold: 0.8
   
   # Maximum supported audio file duration in hours
   # Increased from 12 to 24 hours to support very long recordings
