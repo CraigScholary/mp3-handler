@@ -114,15 +114,15 @@ public class TranscriptWriter {
 
     // Write JSON
     byte[] jsonBytes = writeJson(segments, language);
-    objectStoreClient.putObject(bucket, jsonKey, new ByteArrayInputStream(jsonBytes), "application/json");
+    objectStoreClient.putObject(bucket, jsonKey, new ByteArrayInputStream(jsonBytes), jsonBytes.length, "application/json");
 
     // Write SRT
     byte[] srtBytes = writeSrt(segments);
-    objectStoreClient.putObject(bucket, srtKey, new ByteArrayInputStream(srtBytes), "text/plain");
+    objectStoreClient.putObject(bucket, srtKey, new ByteArrayInputStream(srtBytes), srtBytes.length, "text/plain");
 
     // Generate presigned URLs (valid for 7 days)
-    URL jsonUrl = objectStoreClient.generatePresignedUrl(bucket, jsonKey, Duration.ofDays(7));
-    URL srtUrl = objectStoreClient.generatePresignedUrl(bucket, srtKey, Duration.ofDays(7));
+    URL jsonUrl = objectStoreClient.presignGet(bucket, jsonKey, Duration.ofDays(7));
+    URL srtUrl = objectStoreClient.presignGet(bucket, srtKey, Duration.ofDays(7));
 
     return new TranscriptionResponse.StorageInfo(
         bucket, jsonKey, srtKey, jsonUrl.toString(), srtUrl.toString());
