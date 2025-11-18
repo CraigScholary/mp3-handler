@@ -583,6 +583,10 @@ public class TranscriptionService {
       objectStoreClient.putObject(bucket, srtKey, srtStream, srtBytes.length, "text/plain");
     }
 
-    return new TranscriptionResponse.StorageInfo(jsonKey, srtKey);
+    // Generate presigned URLs (valid for 7 days)
+    java.net.URL jsonUrl = objectStoreClient.presignGet(bucket, jsonKey, java.time.Duration.ofDays(7));
+    java.net.URL srtUrl = objectStoreClient.presignGet(bucket, srtKey, java.time.Duration.ofDays(7));
+
+    return new TranscriptionResponse.StorageInfo(bucket, jsonKey, srtKey, jsonUrl.toString(), srtUrl.toString());
   }
 }
