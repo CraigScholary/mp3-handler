@@ -14,17 +14,17 @@ spring:
 
 # Object Store Configuration (MinIO/S3)
 objectstore:
-  # Local MinIO endpoint for development
-  endpoint: http://localhost:9000
-  # S3-compatible access credentials (dev only - use secrets management in production)
-  accessKey: admin
-  secretKey: admin123
+  # Endpoint - override with OBJECTSTORE_ENDPOINT environment variable
+  endpoint: ${OBJECTSTORE_ENDPOINT:http://localhost:9000}
+  # Access credentials - override with environment variables in production
+  accessKey: ${OBJECTSTORE_ACCESS_KEY:minioadmin}
+  secretKey: ${OBJECTSTORE_SECRET_KEY:minioadmin}
   # Default bucket for audio files
-  bucket: audio-dev
+  bucket: ${OBJECTSTORE_BUCKET:audio-dev}
   # AWS region (optional for MinIO, required for real S3)
-  region: us-east-1
+  region: ${OBJECTSTORE_REGION:us-east-1}
   # Path-style access required for MinIO (virtual-hosted style for AWS S3)
-  pathStyleAccess: true
+  pathStyleAccess: ${OBJECTSTORE_PATH_STYLE:true}
 
 # Whisper API Configuration
 whisper:
