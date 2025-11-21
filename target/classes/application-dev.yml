@@ -9,7 +9,7 @@ spring:
 whisper:
   base-url: ${WHISPER_BASE_URL:http://localhost:8091}
   connect-timeout: 10
-  read-timeout: 300
+  read-timeout: 1800  # 30 minutes for 1-hour chunks
   max-retries: 3
 
 # Logstash configuration for structured logging
@@ -23,18 +23,15 @@ logging:
     host: ${LOGSTASH_HOST:localhost}
     port: ${LOGSTASH_PORT:5044}
 
-# Enable detailed chunk planning and merge logging
+# Transcription configuration for dev
 transcription:
   chunking:
-    defaultChunkSeconds: 60
-    defaultSilenceAware: true
-  overlap:
-    overlapSeconds: 5
-    minOverlapWords: 3
+    maxChunkSeconds: 3600
+    minOverlapSeconds: 30
+    maxFileDurationHours: 24
   merge:
     contextWindowWords: 10
     minSimilarityThreshold: 0.8
-  maxFileDurationHours: 24
   tempDir: ${java.io.tmpdir}/mp3handler
   asyncExecutorThreads: 4
   asyncExecutorQueueSize: 100
@@ -47,13 +44,6 @@ objectstore:
   bucket: ${MINIO_BUCKET:audio-dev}
   region: us-east-1
   path-style-access: true
-
-# Ffmpeg settings
-ffmpeg:
-  silence-noise-threshold: -30dB
-  silence-min-duration: 0.5
-  max-nudge-distance: 3.0
-  audio-quality: 2
 
 # Actuator endpoints
 management:
