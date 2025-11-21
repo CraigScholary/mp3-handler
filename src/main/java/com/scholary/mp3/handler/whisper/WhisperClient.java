@@ -42,8 +42,10 @@ public class WhisperClient implements WhisperService {
     this.objectMapper = objectMapper;
 
     // Build HTTP client with configured timeouts
+    // Note: HttpClient doesn't have a global read timeout, it's set per-request
     this.httpClient =
         HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)  // Use HTTP/1.1 for better compatibility
             .connectTimeout(Duration.ofSeconds(properties.connectTimeout()))
             .build();
 
@@ -122,6 +124,7 @@ public class WhisperClient implements WhisperService {
             .uri(URI.create(properties.baseUrl() + "/api/v1/transcribe"))
             .timeout(Duration.ofSeconds(properties.readTimeout()))
             .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+            .header("Connection", "close")  // Don't reuse connections for long requests
             .POST(bodyPublisher)
             .build();
 
