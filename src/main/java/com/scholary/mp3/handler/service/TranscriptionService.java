@@ -312,6 +312,8 @@ public class TranscriptionService {
    */
   private Duration getActualDuration(String bucket, String key) throws IOException {
     String presignedUrl = objectStoreClient.presignGet(bucket, key, Duration.ofMinutes(5)).toString();
+    
+    LOGGER.debug("Getting duration with ffprobe: url={}", presignedUrl);
 
     ProcessBuilder pb =
         new ProcessBuilder(
@@ -328,7 +330,8 @@ public class TranscriptionService {
       int exitCode = process.waitFor();
 
       if (exitCode != 0) {
-        throw new IOException("ffprobe failed with exit code: " + exitCode);
+        LOGGER.error("ffprobe failed: url={}, output={}", presignedUrl, output);
+        throw new IOException("ffprobe failed with exit code: " + exitCode + ", output: " + output);
       }
 
       double durationSeconds = Double.parseDouble(output);
