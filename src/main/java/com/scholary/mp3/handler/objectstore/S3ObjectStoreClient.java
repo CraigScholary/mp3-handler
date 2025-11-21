@@ -64,11 +64,16 @@ public class S3ObjectStoreClient implements ObjectStoreClient {
             .build();
 
     // Build presigner with same configuration
+    // Note: S3Presigner doesn't have forcePathStyle(), but we can work around it
     this.s3Presigner =
         S3Presigner.builder()
             .region(region)
             .credentialsProvider(credentialsProvider)
             .endpointOverride(URI.create(properties.endpoint()))
+            .serviceConfiguration(
+                software.amazon.awssdk.services.s3.S3Configuration.builder()
+                    .pathStyleAccessEnabled(properties.pathStyleAccess())
+                    .build())
             .build();
 
     LOGGER.info("S3 client initialized successfully");
