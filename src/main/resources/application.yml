@@ -42,72 +42,36 @@ whisper:
 transcription:
   # Chunking configuration
   chunking:
-    # Default chunk duration in seconds (max for both modes)
-    defaultChunkSeconds: 3600  # 1 hour
-    # Default chunking mode: false = OVERLAP, true = SILENCE_AWARE
-    defaultSilenceAware: false
+    # Maximum chunk duration in seconds (Whisper limit)
+    maxChunkSeconds: 3600  # 1 hour
+    # Minimum overlap in seconds (will extend if insufficient words)
+    minOverlapSeconds: 30
+    # Maximum supported audio file duration in hours
+    maxFileDurationHours: 24
   
-  # Overlap mode settings
-  overlap:
-    # Overlap duration in seconds (increased for better accuracy)
-    overlapSeconds: 30
-    # Minimum words for valid match during merge
-    minOverlapWords: 3
-  
-  # Merge strategy configuration
+  # Word matching merge configuration
   merge:
     # Context window for word matching (words before/after)
     contextWindowWords: 10
     # Minimum similarity threshold for fuzzy matching (0.0-1.0)
     minSimilarityThreshold: 0.8
   
-  # Maximum supported audio file duration in hours
-  # Increased from 12 to 24 hours to support very long recordings
-  # With streaming architecture, duration is limited by processing time, not memory
-  maxFileDurationHours: 24
-  
   # Temporary file storage location (uses system temp if not specified)
   # Only individual chunks are stored here, not entire files
-  # Typical usage: ~1-2 chunks in temp at any time (~2-4 MB each)
   tempDir: ${java.io.tmpdir}/mp3handler
   
   # Thread pool size for async processing
-  # Each thread can process one job at a time
-  # Memory usage: ~20MB per active job (streaming mode)
   asyncExecutorThreads: 4
   
   # Maximum queue size for async jobs
-  # Prevents memory exhaustion from too many queued jobs
   asyncExecutorQueueSize: 100
-  
-  # Streaming mode is now used for ALL files (simpler, more consistent)
-  # Benefits:
-  # - Constant memory usage (~20MB) regardless of file size
-  # - Progressive processing (start transcribing while downloading)
-  # - Resume capability via chunk cache
-  # - Backpressure control to prevent memory spikes
   
   # Chunk cache configuration (for resume functionality)
   cache:
     # Maximum number of chunks to cache
-    # Each chunk transcript is ~1-5KB, so 1000 chunks = ~1-5MB
     maxSize: 1000
-    
     # Time to keep cached chunks (in hours)
-    # Allows resume within 24 hours of interruption
     ttlHours: 24
-
-# Ffmpeg Configuration
-ffmpeg:
-  # Silence detection threshold in dB (more negative = quieter sounds detected)
-  # Adjust based on audio quality: -30dB for clean audio, -40dB for noisy
-  silenceNoiseThreshold: -35dB
-  # Minimum silence duration to detect in seconds
-  silenceMinDuration: 1.0
-  # Maximum nudge distance from planned boundary in seconds
-  maxNudgeDistance: 5.0
-  # Audio quality for re-encoding (0-9, lower is better)
-  audioQuality: 2
 
 # Job Store Configuration (Caffeine)
 jobstore:

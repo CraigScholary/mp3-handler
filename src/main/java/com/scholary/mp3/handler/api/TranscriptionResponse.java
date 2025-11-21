@@ -9,17 +9,15 @@ import java.util.List;
  * <p>Contains the merged transcript, diagnostics, and storage locations if saved.
  */
 public record TranscriptionResponse(
-    String jobId,
     List<MergedSegment> segments,
-    String language,
-    Diagnostics diagnostics,
-    StorageInfo storageInfo) {
+    ChunkInfo chunkInfo,
+    StorageInfo storageInfo,
+    Diagnostics diagnostics) {
 
-  public record Diagnostics(
-      int totalChunks, double totalDurationSeconds, int totalSegments, List<ChunkInfo> chunks) {}
-
-  public record ChunkInfo(int index, double start, double end, int segmentCount) {}
+  public record ChunkInfo(int totalChunks, int totalSegments) {}
 
   public record StorageInfo(
       String bucket, String jsonKey, String srtKey, String jsonUrl, String srtUrl) {}
+      
+  public record Diagnostics(String message) {}
 }

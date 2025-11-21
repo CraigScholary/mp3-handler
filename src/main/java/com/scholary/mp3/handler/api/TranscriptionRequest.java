@@ -14,8 +14,7 @@ public record TranscriptionRequest(
     @NotBlank String bucket,
     @NotBlank String key,
     @Min(10) @Max(3600) Integer chunkSeconds,
-    @Min(0) @Max(60) Integer overlapSeconds,
-    Boolean silenceAware,
+    @Min(30) @Max(120) Integer minOverlapSeconds,
     Boolean save) {
 
   // Provide defaults
@@ -23,11 +22,8 @@ public record TranscriptionRequest(
     if (chunkSeconds == null) {
       chunkSeconds = 3600;  // Default to 1 hour
     }
-    if (overlapSeconds == null) {
-      overlapSeconds = 30;  // Default to 30 seconds
-    }
-    if (silenceAware == null) {
-      silenceAware = false;  // Default to overlap mode
+    if (minOverlapSeconds == null) {
+      minOverlapSeconds = 30;  // Minimum 30 seconds overlap
     }
     if (save == null) {
       save = true;

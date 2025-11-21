@@ -15,20 +15,15 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public record TranscriptionProperties(
     @Valid ChunkingProperties chunking,
-    @Valid OverlapProperties overlap,
     @Valid MergeProperties merge,
-    @Positive int maxFileDurationHours,
     @NotBlank String tempDir,
     @Positive int asyncExecutorThreads,
     @Positive int asyncExecutorQueueSize) {
     
     public record ChunkingProperties(
-        @Positive int defaultChunkSeconds,
-        boolean defaultSilenceAware) {}
-    
-    public record OverlapProperties(
-        @Positive int overlapSeconds,
-        @Positive int minOverlapWords) {}
+        @Positive int maxChunkSeconds,
+        @Positive int minOverlapSeconds,
+        @Positive int maxFileDurationHours) {}
     
     public record MergeProperties(
         @Positive int contextWindowWords,

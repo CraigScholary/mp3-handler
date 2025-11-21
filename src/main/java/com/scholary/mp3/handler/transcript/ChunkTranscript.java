@@ -9,4 +9,8 @@ import java.util.List;
  * <p>Tracks the chunk's offset in the original file so we can adjust timestamps during merging.
  */
 public record ChunkTranscript(
-    int chunkIndex, double chunkStartOffset, List<TranscriptSegment> segments, String language) {}
+    int chunkIndex, 
+    double startTime, 
+    double endTime, 
+    List<TranscriptSegment> segments, 
+    String language) {}

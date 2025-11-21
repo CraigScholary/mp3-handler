@@ -3,8 +3,6 @@ package com.scholary.mp3.handler.api;
 import com.scholary.mp3.handler.api.JobStatusResponse.Status;
 import com.scholary.mp3.handler.job.JobRepository;
 import com.scholary.mp3.handler.job.TranscriptionJob;
-import com.scholary.mp3.handler.logging.StructuredLogger;
-import com.scholary.mp3.handler.monitoring.KibanaUrlGenerator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -43,78 +41,43 @@ public class TranscriptionController {
 
   private final com.scholary.mp3.handler.service.TranscriptionService transcriptionService;
   private final JobRepository jobRepository;
-  private final KibanaUrlGenerator kibanaUrlGenerator;
 
   public TranscriptionController(
       com.scholary.mp3.handler.service.TranscriptionService transcriptionService,
-      JobRepository jobRepository,
-      KibanaUrlGenerator kibanaUrlGenerator) {
+      JobRepository jobRepository) {
     this.transcriptionService = transcriptionService;
     this.jobRepository = jobRepository;
-    this.kibanaUrlGenerator = kibanaUrlGenerator;
   }
 
   /**
-   * Preview chunk boundaries without processing.
-   *
-   * <p>This is useful for understanding how a file will be split before committing to a full
-   * transcription. It's fast because it only analyzes silence and plans chunks - no actual cutting
-   * or transcription.
+   * Start asynchronous transcription job.
    */
-  @PostMapping("/chunks/preview")
+  @PostMapping("/api/transcribe")
   @Operation(
-      summary = "Preview chunk boundaries",
-      description =
-          "Analyze an audio file and return planned chunk boundaries without transcribing")
-  public ResponseEntity<ChunkPreviewResponse> previewChunks(
-      @Valid @RequestBody ChunkPreviewRequest request) {
+      summary = "Start transcription",
+      description = "Start asynchronous transcription job and return job ID for status polling")
+  public ResponseEntity<AsyncJobResponse> transcribe(@Valid @RequestBody TranscriptionRequest request) {
     String jobId = UUID.randomUUID().toString();
     try {
-      StructuredLogger.setJobContext(jobId, request.bucket(), request.key());
-      LOGGER.info("Preview chunks request: bucket={}, key={}", request.bucket(), request.key());
+      LOGGER.info("Transcription request: bucket={}, key={}", request.bucket(), request.key());
 
-      ChunkPreviewResponse response = transcriptionService.previewChunks(request);
-      return ResponseEntity.ok(response);
-    } catch (IOException e) {
-      LOGGER.error("Failed to preview chunks", e);
+      // Create job
+      TranscriptionJob job = new TranscriptionJob(jobId, request);
+      jobRepository.save(job);
+      
+      LOGGER.info("Created async transcription job: {}", jobId);
+
+      // Start async processing
+      processJobAsync(job);
+
+      return ResponseEntity.accepted().body(new AsyncJobResponse(jobId, null));
+    } catch (Exception e) {
+      LOGGER.error("Failed to start transcription", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-    } finally {
-      StructuredLogger.clearJobContext();
     }
   }
 
-  /**
-   * Transcribe an MP3 file asynchronously.
-   *
-   * <p>Creates a job, starts processing in the background, and returns the job ID immediately.
-   * Client can poll /jobs/{id} to check status and monitor progress in Kibana.
-   *
-   * <p>This approach is ideal for long-running transcriptions of large files where you want to
-   * track progress and avoid HTTP timeouts.
-   */
-  @PostMapping("/transcribe")
-  @Operation(
-      summary = "Transcribe audio file (async)",
-      description =
-          "Process an MP3 file asynchronously: chunk it, transcribe each chunk, merge results, and"
-              + " optionally save to storage. Returns job ID immediately for status polling.")
-  public ResponseEntity<AsyncJobResponse> transcribe(
-      @Valid @RequestBody TranscriptionRequest request) {
-    String jobId = UUID.randomUUID().toString();
-    TranscriptionJob job = new TranscriptionJob(jobId, request);
 
-    jobRepository.save(job);
-
-    StructuredLogger.setJobContext(jobId, request.bucket(), request.key());
-    LOGGER.info("Created async transcription job: {}", jobId);
-    StructuredLogger.clearJobContext();
-
-    // Start processing asynchronously
-    processJobAsync(job);
-
-    String kibanaUrl = kibanaUrlGenerator.generateJobUrl(jobId);
-    return ResponseEntity.accepted().body(new AsyncJobResponse(jobId, kibanaUrl));
-  }
 
   /**
    * Process a job asynchronously.
@@ -124,8 +87,6 @@ public class TranscriptionController {
    */
   @Async
   public void processJobAsync(TranscriptionJob job) {
-    StructuredLogger.setJobContext(
-        job.getJobId(), job.getRequest().bucket(), job.getRequest().key());
     LOGGER.info("Starting async processing for job: {}", job.getJobId());
 
     try {
@@ -134,7 +95,7 @@ public class TranscriptionController {
       jobRepository.save(job);
 
       // Execute transcription
-      TranscriptionResponse result = transcriptionService.transcribeStreaming(job.getRequest());
+      TranscriptionResponse result = transcriptionService.transcribe(job.getRequest());
 
       // Update job with result
       job.setStatus(Status.COMPLETED);
@@ -149,8 +110,6 @@ public class TranscriptionController {
       job.setStatus(Status.FAILED);
       job.setError(e.getMessage());
       jobRepository.save(job);
-    } finally {
-      StructuredLogger.clearJobContext();
     }
   }
 
@@ -160,7 +119,7 @@ public class TranscriptionController {
    * <p>Returns the current state of an async job. If the job is completed, includes the full
    * transcription result.
    */
-  @GetMapping("/jobs/{id}")
+  @GetMapping("/api/jobs/{id}")
   @Operation(
       summary = "Get job status",
       description = "Check the status of an async transcription job")
@@ -168,17 +127,15 @@ public class TranscriptionController {
     return jobRepository
         .findById(id)
         .map(
-            job -> {
-              String kibanaUrl = kibanaUrlGenerator.generateJobUrl(job.getJobId());
-              return ResponseEntity.ok(
-                  new JobStatusResponse(
-                      job.getJobId(),
-                      job.getStatus(),
-                      job.getProgress(),
-                      job.getResult(),
-                      job.getError(),
-                      kibanaUrl));
-            })
+            job ->
+                ResponseEntity.ok(
+                    new JobStatusResponse(
+                        job.getJobId(),
+                        job.getStatus(),
+                        job.getProgress(),
+                        job.getResult(),
+                        job.getError(),
+                        null)))
         .orElse(ResponseEntity.notFound().build());
   }
 }

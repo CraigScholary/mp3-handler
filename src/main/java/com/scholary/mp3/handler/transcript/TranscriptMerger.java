@@ -1,6 +1,5 @@
 package com.scholary.mp3.handler.transcript;
 
-import com.scholary.mp3.handler.logging.StructuredLogger;
 import com.scholary.mp3.handler.whisper.TranscriptSegment;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,29 +8,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Merges transcripts from multiple chunks into a single coherent transcript.
- *
- * <p>The challenge here is handling the overlap between chunks. We deliberately create 5s overlaps
- * to ensure we don't lose content at boundaries, but that means we get duplicate transcriptions for
- * those overlapping regions.
- *
- * <p>Strategy:
- *
- * <ol>
- *   <li>Adjust all timestamps by adding the chunk's start offset
- *   <li>For overlapping regions, keep segments from the earlier chunk and skip duplicates from the
- *       later chunk
- * </ol>
- *
- * <p>Why this approach? Because the earlier chunk's transcription of the overlap is likely more
- * accurate - it has more context leading up to that point. The later chunk is seeing those words
- * out of context.
+ * Simple transcript merger (deprecated - use WordMatchingMerger instead).
  */
 @Component
 public class TranscriptMerger {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TranscriptMerger.class);
-  private final StructuredLogger structuredLogger = new StructuredLogger(LOGGER);
 
   // Similarity threshold for detecting duplicate segments
   // If two segments have similar text and timing, we consider them duplicates
@@ -55,7 +37,7 @@ public class TranscriptMerger {
       LOGGER.debug(
           "Processing chunk {}: offset={}s, segments={}",
           chunk.chunkIndex(),
-          chunk.chunkStartOffset(),
+          chunk.startTime(),
           chunk.segments().size());
 
       int duplicatesRemoved = 0;
@@ -63,8 +45,8 @@ public class TranscriptMerger {
 
       for (TranscriptSegment segment : chunk.segments()) {
         // Adjust timestamps to absolute time in the original file
-        double absoluteStart = chunk.chunkStartOffset() + segment.start();
-        double absoluteEnd = chunk.chunkStartOffset() + segment.end();
+        double absoluteStart = chunk.startTime() + segment.start();
+        double absoluteEnd = chunk.startTime() + segment.end();
 
         // Skip segments that are clearly in the overlap region and likely duplicates
         // We keep segments from the earlier chunk and skip similar ones from later chunks
@@ -93,13 +75,13 @@ public class TranscriptMerger {
 
       // Log overlap merge if this isn't the first chunk
       if (previousChunkIndex >= 0) {
-        double overlapSeconds = lastEndTime - chunk.chunkStartOffset();
-        structuredLogger.logOverlapMerge(
+        double overlapSeconds = lastEndTime - chunk.startTime();
+        LOGGER.debug(
+            "Merged overlap between chunks {} and {}: {}s overlap, {} duplicates removed",
             previousChunkIndex,
             chunk.chunkIndex(),
             overlapSeconds,
-            duplicatesRemoved > 0,
-            charsRemoved);
+            duplicatesRemoved);
       }
       previousChunkIndex = chunk.chunkIndex();
     }
