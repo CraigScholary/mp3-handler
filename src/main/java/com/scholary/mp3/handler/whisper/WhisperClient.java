@@ -124,7 +124,6 @@ public class WhisperClient implements WhisperService {
             .uri(URI.create(properties.baseUrl() + "/api/v1/transcribe"))
             .timeout(Duration.ofSeconds(properties.readTimeout()))
             .header("Content-Type", "multipart/form-data; boundary=" + boundary)
-            .header("Connection", "close")  // Don't reuse connections for long requests
             .POST(bodyPublisher)
             .build();
 
