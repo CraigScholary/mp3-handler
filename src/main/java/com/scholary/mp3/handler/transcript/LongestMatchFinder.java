@@ -3,6 +3,7 @@ package com.scholary.mp3.handler.transcript;
 import com.scholary.mp3.handler.whisper.TranscriptSegment;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.stereotype.Component;
 
 /**
  * Finds the longest exact word sequence match between two text segments.
@@ -13,6 +14,7 @@ import java.util.List;
  *
  * <p>Uses a sliding window approach to find the longest contiguous sequence of matching words.
  */
+@Component
 public class LongestMatchFinder {
 
   /**

@@ -1,11 +1,4 @@
-com/scholary/mp3/handler/transcript/WordMatchingMergerTest.class
-com/scholary/mp3/handler/chunking/FfmpegChunkPlannerTest.class
-com/scholary/mp3/handler/transcript/TranscriptMergerTest.class
 com/scholary/mp3/handler/objectstore/S3ObjectStoreClientTest.class
-com/scholary/mp3/handler/chunking/TimeRangeTest.class
 com/scholary/mp3/handler/Mp3HandlerApplicationTest.class
-com/scholary/mp3/handler/service/TranscriptionServiceTest.class
 com/scholary/mp3/handler/transcript/LongestMatchFinderTest.class
-com/scholary/mp3/handler/integration/TranscriptionIntegrationTest.class
-com/scholary/mp3/handler/integration/TranscriptionOrchestratorIntegrationTest.class
 com/scholary/mp3/handler/service/TranscriptWriterTest.class
