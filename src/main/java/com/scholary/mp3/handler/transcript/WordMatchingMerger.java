@@ -79,17 +79,19 @@ public class WordMatchingMerger {
         match.matchLength(),
         match.text2StartIndex());
     
-    // Find where the match ENDS in currentChunk (relative to chunk start)
-    // We want to skip everything up to and including the match
+    // Find where the match ENDS in currentChunk
+    // We want to skip all segments that are part of the matched region
     int matchEndWordIndex = match.text2StartIndex() + match.matchLength();
-    double relativeSkipUntil = findTimestampAfterWord(currentChunk.segments(), matchEndWordIndex);
-    double absoluteSkipUntil = currentChunk.startTime() + relativeSkipUntil;
+    
+    // Find the first segment that starts AFTER the matched words
+    List<MergedSegment> result = getSegmentsAfterWordIndex(currentChunk, matchEndWordIndex);
     
     LOGGER.info(
-        "Skipping currentChunk segments until {} (keeping segments after this)",
-        absoluteSkipUntil);
+        "Skipping first {} words (matched region), keeping {} segments from currentChunk",
+        matchEndWordIndex,
+        result.size());
     
-    return getSegmentsAfterTimestamp(currentChunk, absoluteSkipUntil);
+    return result;
   }
   
   /**
@@ -107,6 +109,40 @@ public class WordMatchingMerger {
       }
     }
     LOGGER.info("Kept {} segments after timestamp {}", result.size(), absoluteTime);
+    return result;
+  }
+  
+  /**
+   * Get segments from chunk that come after the first N words.
+   * 
+   * <p>This skips all segments until we've passed wordIndex words, then returns
+   * all remaining segments. If a segment is partially in the matched region,
+   * we skip the entire segment (conservative approach to avoid partial duplicates).
+   */
+  private List<MergedSegment> getSegmentsAfterWordIndex(ChunkTranscript chunk, int wordIndex) {
+    List<MergedSegment> result = new ArrayList<>();
+    int wordCount = 0;
+    
+    for (TranscriptSegment seg : chunk.segments()) {
+      int segmentWordCount = seg.text().trim().split("\\s+").length;
+      
+      // If we haven't reached the word index yet, skip this segment
+      if (wordCount + segmentWordCount <= wordIndex) {
+        wordCount += segmentWordCount;
+        continue;
+      }
+      
+      // If this segment starts after the word index, include it
+      if (wordCount >= wordIndex) {
+        result.add(new MergedSegment(
+            chunk.startTime() + seg.start(),
+            chunk.startTime() + seg.end(),
+            seg.text()));
+      }
+      
+      wordCount += segmentWordCount;
+    }
+    
     return result;
   }
   
