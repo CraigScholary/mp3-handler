@@ -285,7 +285,8 @@ public class TranscriptionService {
       List<MergedSegment> merged = wordMatchingMerger.merge(prevChunk, currentChunk);
       
       // Remove overlapping segments from result and add merged
-      result = removeOverlap(result, prevChunk.endTime());
+      List<MergedSegment> filtered = removeOverlap(result, prevChunk.endTime());
+      result = new ArrayList<>(filtered);
       result.addAll(merged);
     }
 
