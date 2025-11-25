@@ -24,78 +24,40 @@ public class WordMatchingMerger {
   /**
    * Merge two consecutive chunk transcripts.
    * Returns only the segments from currentChunk that don't overlap with prevChunk.
+   * Uses timestamp-based deduplication to avoid repeating content.
    */
   public List<MergedSegment> merge(ChunkTranscript prevChunk, ChunkTranscript currentChunk) {
-    // Get overlap region from both chunks
-    double overlapStart = currentChunk.startTime();
+    // Find the last segment timestamp from prevChunk
+    if (prevChunk.segments().isEmpty()) {
+      return convertToMergedSegments(currentChunk);
+    }
     
-    List<TranscriptSegment> prevOverlap = getSegmentsAfter(prevChunk.segments(), overlapStart);
-    List<TranscriptSegment> currentOverlap = currentChunk.segments();
-
-    if (prevOverlap.isEmpty() || currentOverlap.isEmpty()) {
-      LOGGER.warn("No overlap segments found, using simple concatenation");
-      return convertToMergedSegments(currentChunk);
-    }
-
-    // Find longest word match
-    MatchResult match = matchFinder.findLongestMatch(
-        extractWords(prevOverlap),
-        extractWords(currentOverlap));
-
-    if (!match.hasMatch()) {
-      LOGGER.warn("No word match found, using simple concatenation");
-      return convertToMergedSegments(currentChunk);
-    }
-
+    // Get the absolute end time of the last segment in prevChunk
+    TranscriptSegment lastPrevSegment = prevChunk.segments().get(prevChunk.segments().size() - 1);
+    double prevChunkAbsoluteEnd = prevChunk.startTime() + lastPrevSegment.end();
+    
     LOGGER.info(
-        "Found match: {} words at position {}",
-        match.matchLength(),
-        match.text2StartIndex());
-
-    // Skip segments in currentChunk up to the match point
-    int skipSegments = countSegmentsUpToWord(currentOverlap, match.text2StartIndex());
+        "Merging chunks: prevChunk ends at {}, currentChunk starts at {}",
+        prevChunkAbsoluteEnd,
+        currentChunk.startTime());
     
+    // Only include segments from currentChunk that start AFTER prevChunk ended
     List<MergedSegment> result = new ArrayList<>();
-    for (int i = skipSegments; i < currentChunk.segments().size(); i++) {
-      TranscriptSegment seg = currentChunk.segments().get(i);
-      result.add(new MergedSegment(
-          currentChunk.startTime() + seg.start(),
-          currentChunk.startTime() + seg.end(),
-          seg.text()));
+    for (TranscriptSegment seg : currentChunk.segments()) {
+      double absoluteStart = currentChunk.startTime() + seg.start();
+      
+      // Only include if this segment starts after the previous chunk ended
+      if (absoluteStart >= prevChunkAbsoluteEnd) {
+        result.add(new MergedSegment(
+            absoluteStart,
+            currentChunk.startTime() + seg.end(),
+            seg.text()));
+      }
     }
-
+    
+    LOGGER.info("Kept {} segments from currentChunk (skipped overlapping segments)", result.size());
+    
     return result;
-  }
-
-  private List<TranscriptSegment> getSegmentsAfter(List<TranscriptSegment> segments, double time) {
-    return segments.stream()
-        .filter(s -> s.start() >= time)
-        .toList();
-  }
-
-  private List<String> extractWords(List<TranscriptSegment> segments) {
-    List<String> words = new ArrayList<>();
-    for (TranscriptSegment seg : segments) {
-      String[] segWords = seg.text().trim().split("\\s+");
-      for (String word : segWords) {
-        if (!word.isEmpty()) {
-          words.add(word);
-        }
-      }
-    }
-    return words;
-  }
-
-  private int countSegmentsUpToWord(List<TranscriptSegment> segments, int wordIndex) {
-    int wordCount = 0;
-    for (int i = 0; i < segments.size(); i++) {
-      String[] words = segments.get(i).text().trim().split("\\s+");
-      wordCount += words.length;
-      if (wordCount > wordIndex) {
-        return i;
-      }
-    }
-    return segments.size();
   }
 
   private List<MergedSegment> convertToMergedSegments(ChunkTranscript chunk) {
