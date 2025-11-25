@@ -182,10 +182,10 @@ public class TranscriptionService {
     double chunkEnd = transcript.endTime();
     double overlapStart = chunkEnd - minOverlapSeconds;
 
-    // Find segments in the overlap window
+    // Find segments that overlap with the window (start before end AND end after start)
     List<TranscriptSegment> overlapSegments = new ArrayList<>();
     for (TranscriptSegment segment : segments) {
-      if (segment.end() > overlapStart) {
+      if (segment.start() < chunkEnd && segment.end() > overlapStart) {
         overlapSegments.add(segment);
       }
     }
