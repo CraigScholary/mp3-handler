@@ -24,12 +24,13 @@ public class WordMatchingMerger {
   /**
    * Merge two consecutive chunk transcripts.
    * 
-   * <p>Strategy:
-   * 1. Use word matching to find where prevChunk content appears in currentChunk
-   * 2. Find the timestamp where the match ends in currentChunk
-   * 3. Only keep segments from currentChunk that start AFTER the match point
+   * <p>Strategy (prevChunk is more accurate because it has full context):
+   * 1. Extract last N seconds of prevChunk (the overlap region we extended)
+   * 2. Find where this content appears at the START of currentChunk
+   * 3. Skip the matched portion in currentChunk (it's duplicate, less accurate)
+   * 4. Keep everything in currentChunk AFTER the match
    * 
-   * <p>This ensures we don't lose content at boundaries while avoiding duplicates.
+   * <p>This ensures we keep the more accurate prevChunk version and don't lose content.
    */
   public List<MergedSegment> merge(ChunkTranscript prevChunk, ChunkTranscript currentChunk) {
     if (prevChunk.segments().isEmpty()) {
@@ -40,45 +41,55 @@ public class WordMatchingMerger {
       return List.of();
     }
     
-    // Get overlap region: last N seconds of prevChunk and first N seconds of currentChunk
-    double overlapStart = currentChunk.startTime();
-    List<TranscriptSegment> prevOverlap = getSegmentsAfter(prevChunk.segments(), overlapStart - prevChunk.startTime());
-    List<TranscriptSegment> currentOverlap = currentChunk.segments();
+    // Calculate overlap region: where currentChunk overlaps with prevChunk
+    // currentChunk.startTime() tells us where the overlap begins
+    double overlapStartInPrev = currentChunk.startTime() - prevChunk.startTime();
     
-    if (prevOverlap.isEmpty()) {
-      // No overlap, just concatenate
-      LOGGER.info("No overlap between chunks, concatenating");
+    // Get the overlapping segments from prevChunk (its ending)
+    List<TranscriptSegment> prevOverlapSegments = getSegmentsAfter(prevChunk.segments(), overlapStartInPrev);
+    
+    if (prevOverlapSegments.isEmpty()) {
+      // No overlap, chunks are sequential
+      LOGGER.info("No overlap between chunks, concatenating all of currentChunk");
       return convertToMergedSegments(currentChunk);
     }
     
-    // Extract words from overlap regions
-    List<String> prevWords = extractWords(prevOverlap);
-    List<String> currentWords = extractWords(currentOverlap);
+    // Extract words from the overlap regions
+    List<String> prevOverlapWords = extractWords(prevOverlapSegments);
+    List<String> currentWords = extractWords(currentChunk.segments());
     
-    // Find longest word match
-    MatchResult match = matchFinder.findLongestMatch(prevWords, currentWords);
+    LOGGER.info(
+        "Overlap region: {} words from prevChunk, {} words from currentChunk",
+        prevOverlapWords.size(),
+        currentWords.size());
+    
+    // Find where prevChunk's ending appears in currentChunk's beginning
+    MatchResult match = matchFinder.findLongestMatch(prevOverlapWords, currentWords);
     
     if (!match.hasMatch()) {
-      LOGGER.warn("No word match found in overlap, using timestamp-based merge");
-      // Fall back to timestamp-based: keep segments after prevChunk ends
+      LOGGER.warn("No word match found in overlap region, using timestamp fallback");
+      // Fall back: skip segments in currentChunk that overlap with prevChunk's time range
       TranscriptSegment lastPrevSegment = prevChunk.segments().get(prevChunk.segments().size() - 1);
-      double cutoffTime = prevChunk.startTime() + lastPrevSegment.end();
-      return getSegmentsAfterTimestamp(currentChunk, cutoffTime);
+      double prevChunkAbsoluteEnd = prevChunk.startTime() + lastPrevSegment.end();
+      return getSegmentsAfterTimestamp(currentChunk, prevChunkAbsoluteEnd);
     }
     
     LOGGER.info(
-        "Found match: {} words at position {} in currentChunk",
+        "Found {} word match starting at position {} in currentChunk",
         match.matchLength(),
         match.text2StartIndex());
     
-    // Find the timestamp where the match ENDS in currentChunk
-    // We want to keep everything AFTER the matched region
+    // Find where the match ENDS in currentChunk (relative to chunk start)
+    // We want to skip everything up to and including the match
     int matchEndWordIndex = match.text2StartIndex() + match.matchLength();
-    double cutoffTime = findTimestampAfterWord(currentChunk.segments(), matchEndWordIndex);
+    double relativeSkipUntil = findTimestampAfterWord(currentChunk.segments(), matchEndWordIndex);
+    double absoluteSkipUntil = currentChunk.startTime() + relativeSkipUntil;
     
-    LOGGER.info("Cutoff time: {}, keeping segments after this point", cutoffTime);
+    LOGGER.info(
+        "Skipping currentChunk segments until {} (keeping segments after this)",
+        absoluteSkipUntil);
     
-    return getSegmentsAfterTimestamp(currentChunk, cutoffTime);
+    return getSegmentsAfterTimestamp(currentChunk, absoluteSkipUntil);
   }
   
   /**
